@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(id == 0) {
-        execl("./child", "child", "2", NULL);
+        execl("./child", "child", argv[2], NULL);
     } else {
         for(int i=0;i<N;i++) {
             wait(NULL);
