@@ -9,14 +9,11 @@ SHARED_LIB = lib$(LIB_NAME).so
 
 .PHONY: all clean static shared dynamic
 
-# Dodajemy 'main' do listy celów
 all: static shared dynamic main child
 
-# Tworzymy 'main' jako kopię lub link do wybranej wersji (np. shared)
 main: shared
 	cp main_shared main
 
-# Zmień tę linię w Makefile:
 child: child.c $(STATIC_LIB)
 	$(CC) $(CFLAGS) child.c ./$(STATIC_LIB) -o child
 
