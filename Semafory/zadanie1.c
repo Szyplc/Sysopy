@@ -28,7 +28,7 @@ struct shared_buffer {
     sem_t empty;
     sem_t full;
     sem_t mutex;
-    char data[][DATA_LEN];
+    char (*data)[DATA_LEN];
 };
 
 void save_data(struct shared_buffer* shared_memory, char* data) {
@@ -63,6 +63,7 @@ void init_semaphore(struct shared_buffer* B, int N) {
     sem_init(&B->mutex, 1, 1);
     sem_init(&B->full, 1, 0);
     sem_init(&B->empty, 1, N);
+    B->data = (char (*)[DATA_LEN])((char *)B + sizeof(struct shared_buffer));
 }
 
 // docker run -it --rm -v "$(pwd):/work" gcc bash
