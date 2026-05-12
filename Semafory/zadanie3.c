@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,13 @@
 #include <errno.h>
 
 #define DATA_LEN 10
+
+static volatile sig_atomic_t running = 1;
+
+static void on_term(int sig) {
+    (void)sig;
+    running = 0;
+}
 
 char* gen_ran_arr(int n) {
     char* res = malloc(n);
@@ -114,7 +122,33 @@ void init_semaphore(struct shared_buffer* B, int K) {
     sem_init(&B->empty_priority, 1, K);
     sem_init(&B->full_priority, 1, 0);
     B->normal_queue = (char (*)[DATA_LEN])((char *)B + sizeof(struct shared_buffer));
-    B->priority_queue = (char (*)[DATA_LEN])((char *)B + sizeof(struct shared_buffer) + 2 * K * DATA_LEN);
+    B->priority_queue = (char (*)[DATA_LEN])((char *)B + sizeof(struct shared_buffer) + K * DATA_LEN);
+}
+
+int move_from_normal_to_priority(struct shared_buffer* B) {
+    if (sem_trywait(&B->full_normal) != 0) { // musi cos byc w NORMAL
+        if (errno == EAGAIN) return 0;
+        return -1;
+    }
+
+    if (sem_trywait(&B->empty_priority) != 0) { // musi byc miejsce PRIORITY
+        sem_post(&B->full_normal);
+        if (errno == EAGAIN) return 0;
+        return -1;
+    } 
+
+    sem_wait(&B->mutex);
+    
+    memcpy(B->priority_queue[B->in_priority], B->normal_queue[B->out_normal], DATA_LEN);
+    B->in_priority = (B->in_priority + 1) % B->capacity;
+    B->out_normal = (B->out_normal + 1) % B->capacity;
+    
+    sem_post(&B->mutex);
+
+    sem_post(&B->empty_normal);
+    sem_post(&B->full_priority);
+
+    return 1;
 }
 
 // docker run -it --rm -v "$(pwd):/work" gcc bash
@@ -129,7 +163,7 @@ int main(int argc, char *argv[]) {
     int K = atoi(argv[3]);
     
     // Shared memory setup
-    size_t shm_size = sizeof(struct shared_buffer) + K * DATA_LEN;
+    size_t shm_size = sizeof(struct shared_buffer) + 2 * K * DATA_LEN;
     int shmid = shmget(IPC_PRIVATE, shm_size, IPC_CREAT | 0666);
     if (shmid == -1) {
         perror("shmget");
@@ -193,6 +227,22 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
     }
+
+    pid_t manager_pid = fork();
+    
+    if (manager_pid == -1) {
+        perror("fork");
+        exit(1);
+    }
+    if (manager_pid == 0) {
+        // Manager
+        signal(SIGTERM, on_term);
+        while(running) {
+            usleep(5000000);
+            move_from_normal_to_priority(shared_memory);
+        }
+        exit(0);
+    }
     
     // Czekamy na producentow
     for (int i=0; i<N; i++) {
@@ -212,6 +262,9 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<M; i++) {
         wait(NULL);
     }
+
+    kill(manager_pid, SIGTERM);
+    waitpid(manager_pid, NULL, 0);
 
     // Czyszczenie
     sem_destroy(&shared_memory->mutex);
