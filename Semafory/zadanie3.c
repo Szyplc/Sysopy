@@ -278,3 +278,17 @@ int main(int argc, char *argv[]) {
 
     return  0;
 }
+/*
+Potencjalny blad:
+Race z full_any po promocji: 
+konsument rezerwuje full_any, 
+sprawdza full_priority, 
+a potem blokuje sie na full_normal. 
+W tym oknie manager moze przeniesc 
+ostatni element z NORMAL do PRIORITY, 
+przez co konsument blokuje sie na 
+NORMAL mimo ze element jest juz w 
+PRIORITY (i nikt go nie odbierze, 
+bo full_any zostal juz zmniejszony). 
+To moze zawiesic przetwarzanie.
+*/
