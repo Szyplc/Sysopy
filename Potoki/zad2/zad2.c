@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     int fd_out = open("/tmp/fifo1", O_WRONLY);
     write(fd_out, &start, sizeof(start));
-    write(fd_out, &end, sizeof(start));
+    write(fd_out, &end, sizeof(start)); // tu blad
     write(fd_out, &width, sizeof(width));
     close(fd_out);
 

@@ -14,8 +14,8 @@ int main(int argc, char *argv[]) {
     double start, end, result, width;
     int fd_in = open("/tmp/fifo1", O_RDONLY);
     read(fd_in, &start, sizeof(start));
-    read(fd_in, &end, sizeof(start));
-    read(fd_in, &width, sizeof(double));
+    read(fd_in, &end, sizeof(start)); // tu blad
+    read(fd_in, &width, sizeof(double)); // tu blad
     close(fd_in);
     result = 0;
     for(double i=start; i<end; i+=width) {
